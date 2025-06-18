@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>System Rezerwacji Stanowisk</title>
+  <style>
+    body { font-family: Arial; text-align: center; padding: 20px; }
+    .box {
+      width: 120px; height: 100px; margin: 10px;
+      display: inline-block; text-align: center;
+      line-height: 20px; padding-top: 10px;
+      font-weight: bold; border-radius: 10px;
+      cursor: pointer; color: #000;
+    }
+    .free { background-color: lightgreen; }
+    .occupied { background-color: tomato; cursor: not-allowed; }
+    .reserved { background-color: gold; cursor: not-allowed; }
+    #container { display: flex; flex-wrap: wrap; justify-content: center; }
+    #loginForm, #welcome { margin-bottom: 20px; }
+    #modal {
+      display: none; position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: white; padding: 20px;
+      border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    #overlay {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 999;
+    }
+    input[type="date"], input[type="time"] { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>System Rezerwacji Stanowisk</h1>
+  <div id="loginForm">
+    <input type="text" id="username" placeholder="Wpisz swoje imię">
+    <button onclick="login()">Zaloguj się</button>
+  </div>
+  <div id="welcome" style="display:none;">
+    Zalogowany jako <strong id="userDisplay"></strong>
+    <button onclick="logout()">Wyloguj</button>
+  </div>
+  <div id="container">Ładowanie stanowisk...</div>
+  <div id="modal">
+    <h3>Rezerwacja stanowiska ID: <span id="modalId"></span></h3>
+    <input type="date" id="date"><br>
+    <label>Od: <input type="time" id="startTime"></label><br>
+    <label>Do: <input type="time" id="endTime"></label><br><br>
+    <button onclick="submitReservation()">Rezerwuj</button>
+    <button onclick="closeModal()">Anuluj</button>
+  </div>
+  <div id="overlay" onclick="closeModal()"></div>
+  <script>
+    let selectedId = null;
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      if (!username) return alert("Podaj imię.");
+      const res = await fetch('http://127.0.0.1:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username })
+      });
+      if (res.ok) {
+        sessionStorage.setItem('username', username);
+        updateLoginState();
+        fetchData();
+      }
+    }
+    function logout() {
+      sessionStorage.removeItem('username');
+      updateLoginState();
+      document.getElementById('container').innerHTML = '';
+    }
+    function updateLoginState() {
+      const username = sessionStorage.getItem('username');
+      document.getElementById('loginForm').style.display = username ? 'none' : 'block';
+      document.getElementById('welcome').style.display = username ? 'block' : 'none';
+      document.getElementById('userDisplay').innerText = username || '';
+    }
+    async function fetchData() {
+      const res = await fetch('http://127.0.0.1:5000/api/get_status');
+      const data = await res.json();
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+      data.forEach(row => {
+        const [id, occupied, reserved, reservedBy, reservedFrom, reservedTo] = row;
+        const div = document.createElement('div');
+        div.className = 'box ' + (occupied ? 'occupied' : (reserved ? 'reserved' : 'free'));
+        div.innerHTML = `ID: ${id}<br>${reserved ? `By: ${reservedBy}<br>${formatDate(reservedFrom)} - ${formatDate(reservedTo)}` : ''}`;
+        if (!occupied && !reserved && sessionStorage.getItem('username')) {
+          div.onclick = () => openReservationDialog(id);
+        }
+        container.appendChild(div);
+      });
+    }
+    function formatDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleString();
+    }
+    function openReservationDialog(id) {
+      selectedId = id;
+      document.getElementById('modalId').innerText = id;
+      document.getElementById('date').valueAsDate = new Date();
+      document.getElementById('startTime').value = "09:00";
+      document.getElementById('endTime').value = "10:00";
+      document.getElementById('modal').style.display = 'block';
+      document.getElementById('overlay').style.display = 'block';
+    }
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+      document.getElementById('overlay').style.display = 'none';
+    }
+    async function submitReservation() {
+      const date = document.getElementById('date').value;
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      if (!date || !start || !end) return alert("Uzupełnij wszystkie pola.");
+      const startISO = new Date(`${date}T${start}`).toISOString();
+      const endISO = new Date(`${date}T${end}`).toISOString();
+      const res = await fetch('http://127.0.0.1:5000/api/reserve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: selectedId, start: startISO, end: endISO })
+      });
+      if (res.ok) {
+  alert("Rezerwacja zapisana.");
+  closeModal();
+  setTimeout(fetchData, 300); // lekkie opóźnienie na zapis do bazy
+}
+    }
+    updateLoginState();
+    if (sessionStorage.getItem('username')) fetchData();
+    setInterval(fetchData, 10000);
+  </script>
+</body>
+</html>
