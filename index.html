@@ -4,60 +4,115 @@
   <meta charset="UTF-8">
   <title>System Rezerwacji Stanowisk</title>
   <style>
-    body { font-family: Arial; text-align: center; padding: 20px; }
+    body { font-family: Arial; margin: 0; display: flex; align-items: flex-start; }
+    #main { flex: 1; padding: 20px; }
+    #sidebar { width: 160px; padding: 20px; border-left: 1px solid #ccc; min-height: 100vh; }
+    h1,h2 { margin-top: 0; }
     .box {
-      width: 120px; height: 100px; margin: 10px;
-      display: inline-block; text-align: center;
-      line-height: 20px; padding-top: 10px;
-      font-weight: bold; border-radius: 10px;
-      cursor: pointer; color: #000;
+      width: 120px; height: 100px; margin: 10px auto;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      text-align: center; font-weight: bold;
+      border-radius: 10px; cursor: pointer;
+      padding: 5px; box-sizing: border-box;
     }
-    .free { background-color: lightgreen; }
-    .occupied { background-color: tomato; cursor: not-allowed; }
-    .reserved { background-color: gold; cursor: not-allowed; }
-    #container { display: flex; flex-wrap: wrap; justify-content: center; }
-    #loginForm, #welcome { margin-bottom: 20px; }
+    .free     { background: lightgreen; }
+    .occupied { background: tomato; cursor: not-allowed; }
+    .reserved { background: gold; cursor: not-allowed; }
+    .link-tile { background: #90caf9; }
+    #container { display: flex; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+    #myResList, #adminResList {
+      text-align: left; margin-left: 10px; margin-bottom: 20px;
+    }
+    #loginForm, #welcome,
+    #tilesSection, #myReservationsSection, #adminPanel {
+      margin-bottom: 20px;
+    }
     #modal {
       display: none; position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: white; padding: 20px;
-      border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.3);
-      z-index: 1000;
+      background: white; padding: 20px; border-radius: 8px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.3); z-index: 1000;
     }
     #overlay {
       display: none; position: fixed; top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
+      width: 100%; height: 100%; background: rgba(0,0,0,0.5);
       z-index: 999;
     }
-    input[type="date"], input[type="time"] { margin: 5px; }
+    input, button { margin: 5px; padding: 5px 10px; }
   </style>
 </head>
 <body>
-  <h1>System Rezerwacji Stanowisk</h1>
-  <div id="loginForm">
-    <input type="text" id="username" placeholder="Wpisz swoje imię">
-    <button onclick="login()">Zaloguj się</button>
+  <div id="main">
+    <h1>System Rezerwacji Stanowisk</h1>
+
+    <div id="loginForm">
+      <input id="username" placeholder="Wpisz swoje imię">
+      <button id="loginBtn">Zaloguj się</button>
+    </div>
+
+    <div id="welcome" style="display: none;">
+      Zalogowany jako <strong id="userDisplay"></strong>
+      <button id="logoutBtn">Wyloguj</button>
+    </div>
+
+    <div id="tilesSection">
+      <h2>Dostępne stanowiska</h2>
+      <div id="container">Ładowanie stanowisk…</div>
+    </div>
+
+    <div id="myReservationsSection">
+      <h2>Moje rezerwacje</h2>
+      <div id="myResList">Ładowanie rezerwacji…</div>
+    </div>
+
+    <div id="adminPanel" style="display: none;">
+      <h2>Panel Admina</h2>
+      <div id="adminResList">Ładowanie rezerwacji admin…</div>
+    </div>
   </div>
-  <div id="welcome" style="display:none;">
-    Zalogowany jako <strong id="userDisplay"></strong>
-    <button onclick="logout()">Wyloguj</button>
+
+  <div id="sidebar">
+    <div id="calendarTile"  class="box link-tile">Kalendarz</div>
+    <div id="exportCsvTile" class="box link-tile">Eksport CSV</div>
+    <div id="statsTile"     class="box link-tile">Statystyki</div>
+    <div id="settingsTile"  class="box link-tile">Ustawienia</div>
+    <div id="helpTile"      class="box link-tile">Pomoc</div>
   </div>
-  <div id="container">Ładowanie stanowisk...</div>
+
   <div id="modal">
     <h3>Rezerwacja stanowiska ID: <span id="modalId"></span></h3>
     <input type="date" id="date"><br>
     <label>Od: <input type="time" id="startTime"></label><br>
     <label>Do: <input type="time" id="endTime"></label><br><br>
-    <button onclick="submitReservation()">Rezerwuj</button>
-    <button onclick="closeModal()">Anuluj</button>
+    <button id="submitReservationBtn">Rezerwuj</button>
+    <button id="closeModalBtn">Anuluj</button>
   </div>
-  <div id="overlay" onclick="closeModal()"></div>
+  <div id="overlay"></div>
+
   <script>
     let selectedId = null;
+
+    // Elementy
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const submitReservationBtn = document.getElementById('submitReservationBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const overlay = document.getElementById('overlay');
+
+    // Obsługa sesji
+    function updateLoginState() {
+      const user = sessionStorage.getItem('username');
+      document.getElementById('loginForm').style.display = user ? 'none' : 'block';
+      document.getElementById('welcome').style.display   = user ? 'block' : 'none';
+      document.getElementById('userDisplay').innerText   = user || '';
+      document.getElementById('adminPanel').style.display= (user === 'admin' ? 'block' : 'none');
+    }
+
+    // Logowanie
     async function login() {
       const username = document.getElementById('username').value.trim();
-      if (!username) return alert("Podaj imię.");
+      if (!username) { alert('Podaj imię'); return; }
       const res = await fetch('http://127.0.0.1:5000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,76 +122,199 @@
       if (res.ok) {
         sessionStorage.setItem('username', username);
         updateLoginState();
-        fetchData();
+        await fetchData();
+        await loadMyReservations();
+        if (username === 'admin') await loadAdminReservations();
       }
     }
+
+    // Wylogowanie
     function logout() {
       sessionStorage.removeItem('username');
       updateLoginState();
       document.getElementById('container').innerHTML = '';
+      document.getElementById('myResList').innerHTML = '';
+      document.getElementById('adminResList').innerHTML = '';
     }
-    function updateLoginState() {
-      const username = sessionStorage.getItem('username');
-      document.getElementById('loginForm').style.display = username ? 'none' : 'block';
-      document.getElementById('welcome').style.display = username ? 'block' : 'none';
-      document.getElementById('userDisplay').innerText = username || '';
-    }
+
+    // Pobranie statusu stanowisk
     async function fetchData() {
-      const res = await fetch('http://127.0.0.1:5000/api/get_status');
+      const res = await fetch('http://127.0.0.1:5000/api/get_status', {
+        credentials: 'include',
+        cache: 'no-store'
+      });
       const data = await res.json();
       const container = document.getElementById('container');
       container.innerHTML = '';
-      data.forEach(row => {
-        const [id, occupied, reserved, reservedBy, reservedFrom, reservedTo] = row;
-        const div = document.createElement('div');
-        div.className = 'box ' + (occupied ? 'occupied' : (reserved ? 'reserved' : 'free'));
-        div.innerHTML = `ID: ${id}<br>${reserved ? `By: ${reservedBy}<br>${formatDate(reservedFrom)} - ${formatDate(reservedTo)}` : ''}`;
-        if (!occupied && !reserved && sessionStorage.getItem('username')) {
-          div.onclick = () => openReservationDialog(id);
+
+      data.forEach(([id, occupied, reserved, by, from, to]) => {
+        const box = document.createElement('div');
+        box.className = 'box ' +
+          (occupied ? 'occupied' : (reserved ? 'reserved' : 'free'));
+
+        if (reserved) {
+          box.innerHTML = `
+            ID: ${id}<br>
+            By: ${by}<br>
+            ${new Date(from).toLocaleTimeString()}–${new Date(to).toLocaleTimeString()}
+          `;
+        } else {
+          box.textContent = `ID: ${id}`;
         }
-        container.appendChild(div);
+
+        if (!occupied && !reserved && sessionStorage.getItem('username')) {
+          box.addEventListener('click', () => openModal(id));
+        }
+
+        container.appendChild(box);
       });
     }
-    function formatDate(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleString();
+
+    // Moje rezerwacje
+    async function loadMyReservations() {
+      const res = await fetch('http://127.0.0.1:5000/api/my_reservations', {
+        credentials: 'include', cache: 'no-store'
+      });
+      if (!res.ok) return console.error(await res.text());
+
+      const data = await res.json();
+      const list = document.getElementById('myResList');
+      list.innerHTML = '';
+
+      data.forEach(([id, from, to]) => {
+        const btn = document.createElement('button');
+        btn.textContent = `Anuluj ${id} (${new Date(from).toLocaleTimeString()}–${new Date(to).toLocaleTimeString()})`;
+        btn.addEventListener('click', async () => {
+          await fetch('http://127.0.0.1:5000/api/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id })
+          });
+          await fetchData();
+          await loadMyReservations();
+        });
+        list.appendChild(btn);
+      });
     }
-    function openReservationDialog(id) {
+
+    // Panel Admina
+    async function loadAdminReservations() {
+      const res = await fetch('http://127.0.0.1:5000/api/admin/reservations', {
+        credentials: 'include', cache: 'no-store'
+      });
+      if (!res.ok) return console.error(await res.text());
+
+      const data = await res.json();
+      const list = document.getElementById('adminResList');
+      list.innerHTML = '';
+
+      data.forEach(([id, user, from, to]) => {
+        const btn = document.createElement('button');
+        btn.textContent = `Anuluj ${user}@${id}`;
+        btn.addEventListener('click', async () => {
+          await fetch('http://127.0.0.1:5000/api/admin/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id })
+          });
+          await fetchData();
+          await loadAdminReservations();
+          await loadMyReservations();
+        });
+        list.appendChild(btn);
+      });
+    }
+
+    // Modal rezerwacji
+    function openModal(id) {
       selectedId = id;
-      document.getElementById('modalId').innerText = id;
+      document.getElementById('modalId').textContent = id;
       document.getElementById('date').valueAsDate = new Date();
-      document.getElementById('startTime').value = "09:00";
-      document.getElementById('endTime').value = "10:00";
-      document.getElementById('modal').style.display = 'block';
-      document.getElementById('overlay').style.display = 'block';
+      document.getElementById('startTime').value = '09:00';
+      document.getElementById('endTime').value   = '10:00';
+      document.getElementById('modal').style.display   = 'block';
+      overlay.style.display = 'block';
     }
+
     function closeModal() {
       document.getElementById('modal').style.display = 'none';
-      document.getElementById('overlay').style.display = 'none';
+      overlay.style.display = 'none';
     }
+
     async function submitReservation() {
-      const date = document.getElementById('date').value;
+      const date  = document.getElementById('date').value;
       const start = document.getElementById('startTime').value;
-      const end = document.getElementById('endTime').value;
-      if (!date || !start || !end) return alert("Uzupełnij wszystkie pola.");
-      const startISO = new Date(`${date}T${start}`).toISOString();
-      const endISO = new Date(`${date}T${end}`).toISOString();
-      const res = await fetch('http://127.0.0.1:5000/api/reserve', {
+      const end   = document.getElementById('endTime').value;
+      if (!date || !start || !end) {
+        alert('Uzupełnij wszystkie pola');
+        return;
+      }
+      const from = `${date}T${start}:00`;
+      const to   = `${date}T${end}:00`;
+      const res  = await fetch('http://127.0.0.1:5000/api/reserve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: selectedId, start: startISO, end: endISO })
+        body: JSON.stringify({ id: selectedId, start: from, end: to })
       });
       if (res.ok) {
-  alert("Rezerwacja zapisana.");
-  closeModal();
-  setTimeout(fetchData, 300); // lekkie opóźnienie na zapis do bazy
-}
+        alert('Zarezerwowano');
+        closeModal();
+        await fetchData();
+        await loadMyReservations();
+        if (sessionStorage.getItem('username') === 'admin') {
+          await loadAdminReservations();
+        }
+      } else {
+        const err = await res.json();
+        alert('Błąd: ' + err.error);
+      }
     }
+
+    // Sidebar
+    document.getElementById('calendarTile').addEventListener('click', () => location.href = 'calendar.html');
+    document.getElementById('exportCsvTile').addEventListener('click', exportCsv);
+    document.getElementById('statsTile').addEventListener('click', ()     => location.href = 'stats.html');
+    document.getElementById('settingsTile').addEventListener('click', ()  => location.href = 'settings.html');
+    document.getElementById('helpTile').addEventListener('click', ()      => location.href = 'help.html');
+
+    async function exportCsv() {
+      const res = await fetch('http://127.0.0.1:5000/api/export_csv', { credentials: 'include' });
+      if (!res.ok) { alert('Błąd eksportu'); return; }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'rezerwacje.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Podpięcie zdarzeń
+    loginBtn.addEventListener('click', login);
+    logoutBtn.addEventListener('click', logout);
+    submitReservationBtn.addEventListener('click', submitReservation);
+    closeModalBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', closeModal);
+
+    // Inicjalizacja
     updateLoginState();
-    if (sessionStorage.getItem('username')) fetchData();
+    if (sessionStorage.getItem('username')) {
+      fetchData();
+      loadMyReservations();
+      if (sessionStorage.getItem('username') === 'admin') {
+        loadAdminReservations();
+      }
+    }
     setInterval(fetchData, 10000);
+    setInterval(loadMyReservations, 60000);
+    setInterval(() => {
+      if (sessionStorage.getItem('username') === 'admin') {
+        loadAdminReservations();
+      }
+    }, 60000);
   </script>
 </body>
 </html>

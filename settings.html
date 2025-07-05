@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Ustawienia Konta</title>
+  <style>
+    body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
+    h1 { margin-top: 0; }
+    form { display: flex; flex-direction: column; gap: 15px; }
+    label { display: flex; flex-direction: column; font-weight: bold; }
+    input, select { padding: 8px; font-size: 1em; }
+    button { width: 120px; padding: 10px; margin-top: 10px; }
+    .note { font-size: 0.9em; color: #555; }
+    a { text-decoration: none; color: #007ACC; }
+  </style>
+</head>
+<body>
+  <h1>Ustawienia</h1>
+  <p><a href="index.html">← Powrót do panelu głównego</a></p>
+  <form id="settingsForm">
+    <label>
+      Zmień nazwę użytkownika
+      <input type="text" id="usernameInput" placeholder="Twoje imię">
+    </label>
+
+    <label>
+      Domyślny czas rezerwacji
+      <select id="defaultDuration">
+        <option value="1">1 godzina</option>
+        <option value="2">2 godziny</option>
+        <option value="3">3 godziny</option>
+      </select>
+      <span class="note">Wybierz, ile godzin ma trwać rezerwacja domyślnie.</span>
+    </label>
+
+    <label>
+      Powiadomienia e-mail
+      <select id="notifications">
+        <option value="on">Włączone</option>
+        <option value="off">Wyłączone</option>
+      </select>
+    </label>
+
+    <button type="button" id="saveSettings">Zapisz ustawienia</button>
+  </form>
+
+  <script>
+    // Załaduj ustawienia z lokalnego storage lub z backendu
+    function loadSettings() {
+      const username = localStorage.getItem('username') || '';
+      document.getElementById('usernameInput').value = username;
+      const duration = localStorage.getItem('defaultDuration') || '1';
+      document.getElementById('defaultDuration').value = duration;
+      const notif = localStorage.getItem('notifications') || 'on';
+      document.getElementById('notifications').value = notif;
+    }
+    // Zapisz ustawienia
+    document.getElementById('saveSettings').addEventListener('click', () => {
+      const u = document.getElementById('usernameInput').value.trim();
+      const d = document.getElementById('defaultDuration').value;
+      const n = document.getElementById('notifications').value;
+      localStorage.setItem('username', u);
+      localStorage.setItem('defaultDuration', d);
+      localStorage.setItem('notifications', n);
+      alert('Ustawienia zapisane.');
+    });
+    loadSettings();
+  </script>
+</body>
+</html>

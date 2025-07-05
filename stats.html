@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Statystyki Rezerwacji</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    h1, h2 { margin-top: 0; }
+    .stat-card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+    }
+    .stat-card h3 { margin: 0 0 10px; }
+    #charts { display: flex; flex-wrap: wrap; gap: 20px; }
+    .chart-placeholder {
+      flex: 1 1 300px;
+      height: 200px;
+      background: #f5f5f5;
+      border: 1px dashed #aaa;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+    }
+    a { text-decoration: none; color: #007ACC; }
+  </style>
+</head>
+<body>
+  <h1>Statystyki Rezerwacji</h1>
+  <p><a href="index.html">← Powrót do panelu głównego</a></p>
+
+  <div class="stat-card">
+    <h3>Łączna liczba rezerwacji</h3>
+    <p><strong id="totalReservations">Ładowanie…</strong></p>
+  </div>
+
+  <div class="stat-card">
+    <h3>Najbardziej oblegane stanowisko</h3>
+    <p><strong id="topStation">Ładowanie…</strong></p>
+  </div>
+
+  <div id="charts">
+    <div class="chart-placeholder" id="chartDaily">
+      Wykres: Rezerwacje według dni tygodnia
+    </div>
+    <div class="chart-placeholder" id="chartHours">
+      Wykres: Rezerwacje według godzin
+    </div>
+  </div>
+
+  <script>
+    // Przykładowy fetch statystyk (backend musi wystawiać takie dane)
+    async function loadStats() {
+      const res = await fetch('http://127.0.0.1:5000/api/stats', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      document.getElementById('totalReservations').textContent = data.total;
+      document.getElementById('topStation').textContent = `Stanowisko #${data.topStation.id} (${data.topStation.count} rezerwacji)`;
+      // tutaj możesz wstawić kod do rysowania wykresów w <canvas> lub SVG
+    }
+    loadStats();
+  </script>
+</body>
+</html>
